@@ -1,1 +1,1 @@
-worker: python wowow_schedule.py
+worker: bash start.sh
