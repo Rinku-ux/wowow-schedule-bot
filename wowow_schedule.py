@@ -43,7 +43,7 @@ def fetch_schedule_multiple_days(start_date, days=2):
     options.add_argument('--lang=ja-JP')
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                            'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36')
-    options.binary_location = "/usr/bin/chromium"
+    options.binary_location = "/usr/bin/google-chrome-stable"
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     # 重要：ブラウザ内のタイムゾーンを JST に設定
