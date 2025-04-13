@@ -3,6 +3,17 @@ import time
 from datetime import datetime, timedelta
 import os
 import gspread
+import logging
+
+def find_chrome_binary():
+    candidates = ["/usr/bin/google-chrome-stable", "/usr/bin/google-chrome"]
+    for path in candidates:
+        if os.path.exists(path):
+            logging.info(f"Chrome binary found: {path}")
+            return path
+    raise FileNotFoundError("Google Chrome binary not found.")
+
+chrome_binary = find_chrome_binary()
 
 # Python側の日付処理をJSTに固定（ただしこれだけではブラウザは変更されない）
 os.environ['TZ'] = 'Asia/Tokyo'
@@ -42,8 +53,8 @@ def fetch_schedule_multiple_days(start_date, days=2):
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--lang=ja-JP')
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                           'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36')
-    options.binary_location = "/usr/bin/google-chrome-stable"
+                       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36')
+    options.binary_location = chrome_binary  # 自動検出したパスを利用
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     # 重要：ブラウザ内のタイムゾーンを JST に設定
