@@ -2,8 +2,8 @@ name: WOWOW番組表更新
 
 on:
   schedule:
-    - cron: '0 20 * * *'  # 毎日日本時間 5:00 に実行（UTC 20時）
-  workflow_dispatch:  # 手動実行も可能
+    - cron: '0 20 * * *'  # 毎日日本時間5時に実行 (UTC時間基準)
+  workflow_dispatch:  # 手動でも実行できるボタンを作成
 
 jobs:
   run-script:
@@ -22,10 +22,10 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Restore credentials.json
+    - name: Restore credentials.json from Base64
       run: |
-        echo "${{ secrets.CREDENTIALS_JSON }}" > credentials1.json
+        echo "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 -d > credentials1.json
 
-    - name: Run the script
+    - name: Run the WOWOW schedule script
       run: |
         python wowow_schedule.py
