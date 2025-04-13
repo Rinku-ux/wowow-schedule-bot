@@ -24,7 +24,8 @@ jobs:
 
     - name: Restore credentials.json from Base64
       run: |
-        echo "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 -d > credentials1.json
+        echo "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 --decode > credentials1.json
+        shell: bash
 
     - name: Run the WOWOW schedule script
       run: |
