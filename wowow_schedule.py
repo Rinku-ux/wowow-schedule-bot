@@ -3,6 +3,10 @@ import time
 from datetime import datetime
 import os
 import gspread
+# ここで日本時間にする
+os.environ['TZ'] = 'Asia/Tokyo'
+time.tzset()
+
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
