@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# パッケージ情報更新＆必要なライブラリインストール
+# パッケージ情報更新＆必要な依存ライブラリインストール
 apt-get update
 apt-get install -y wget gnupg2 \
     fonts-liberation \
@@ -20,7 +20,7 @@ apt-get install -y wget gnupg2 \
     libxrandr2 \
     xdg-utils
 
-# Googleの公開鍵登録
+# Google の公開鍵登録
 wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 
 # Google Chrome リポジトリ追加
@@ -29,7 +29,7 @@ echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /et
 apt-get update
 apt-get install -y google-chrome-stable
 
-# インストール確認（ログ出力）
+# インストール確認：実行ファイルのパスをログに出力
 echo "Installed chrome paths:"
 which google-chrome-stable || true
 which google-chrome || true
