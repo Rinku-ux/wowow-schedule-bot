@@ -2,7 +2,7 @@ name: WOWOW番組表更新
 
 on:
   schedule:
-    - cron: '0 20 * * *'  # 毎日日本時間5時
+    - cron: '0 20 * * *'  # 毎日日本時間5時に実行（UTC時間基準）
   workflow_dispatch:
 
 jobs:
@@ -22,12 +22,12 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Restore credentials.json from Base64
+    - name: Restore credentials.json from Base64 using printf
       run: |
-        echo "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 --decode > credentials1.json
+        printf "%s" "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 --decode > credentials1.json
       shell: bash
 
-    - name: Show credentials.json content (for debug)
+    - name: Debug: Show credentials.json content
       run: |
         cat credentials1.json
       shell: bash
