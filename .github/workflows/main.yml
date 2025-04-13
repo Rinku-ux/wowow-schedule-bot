@@ -2,13 +2,12 @@ name: WOWOW番組表更新
 
 on:
   schedule:
-    - cron: '0 20 * * *'  # 毎日日本時間5時に実行 (UTC時間基準)
-  workflow_dispatch:  # 手動でも実行できるボタンを作成
+    - cron: '0 20 * * *'  # 毎日日本時間5時
+  workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -25,7 +24,12 @@ jobs:
     - name: Restore credentials.json from Base64
       run: |
         echo "${{ secrets.CREDENTIALS_JSON_BASE64 }}" | base64 --decode > credentials1.json
-        shell: bash
+      shell: bash
+
+    - name: Show credentials.json content (for debug)
+      run: |
+        cat credentials1.json
+      shell: bash
 
     - name: Run the WOWOW schedule script
       run: |
