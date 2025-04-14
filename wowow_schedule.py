@@ -11,6 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+import pytz  # タイムゾーン管理のために追加
 
 def find_chrome_binary():
     candidates = ["/usr/bin/google-chrome-stable", "/usr/bin/google-chrome"]
@@ -22,9 +23,9 @@ def find_chrome_binary():
 
 chrome_binary = find_chrome_binary()
 
-# Python側の日付処理をJSTに固定（ただしこれだけではブラウザは変更されない）
-os.environ['TZ'] = 'Asia/Tokyo'
-time.tzset()
+# タイムゾーンを明示的に設定
+tokyo = pytz.timezone('Asia/Tokyo')
+start_date = datetime.now(tokyo).replace(hour=0, minute=0, second=0, microsecond=0)
 
 # ========== 設定 ==========
 SPREADSHEET_ID = "1lkshTdrk5gVUpSUe9-xTpq438xQQh_SBGcKXfBboH7s"
@@ -91,7 +92,7 @@ def fetch_schedule_multiple_days(start_date, days=2):
 
                     program = {
                         'チャンネル': channel_name,
-                        '日付': display_date,
+                        '日付': display_date,  # 各日に対する正確な日付を設定
                         '時間': corrected_time,
                         'タイトル': title_tag.text.strip() if title_tag else '',
                         '画像URL': img_tag['src'].strip() if img_tag and img_tag.has_attr('src') else '',
@@ -147,11 +148,12 @@ def write_to_spreadsheet(programs):
 
 # ========== メイン ==========
 def main():
-    start_date = datetime.now()
-    logging.info(f"スケジュール取得開始日: {start_date.strftime('%Y/%m/%d')}")
-    programs = fetch_schedule_multiple_days(start_date, days=2)
+    # タイムゾーンを考慮して開始日を取得
+    today = datetime.now(tokyo).replace(hour=0, minute=0, second=0, microsecond=0)
+    logging.info(f"スケジュール取得開始日: {today.strftime('%Y/%m/%d')}")
+    programs = fetch_schedule_multiple_days(today, days=2)
     if programs:
-        logging.info(f"🎬 取得番組数: {len(programs)}")
+        logging.info(f"🎉 取得番組数: {len(programs)}")
         write_to_spreadsheet(programs)
     else:
         logging.error("番組データを取得できませんでした。")
