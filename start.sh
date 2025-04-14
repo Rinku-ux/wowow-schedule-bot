@@ -36,3 +36,4 @@ which google-chrome || true
 
 # Pythonスクリプト実行
 python wowow_schedule.py
+python animax.py
