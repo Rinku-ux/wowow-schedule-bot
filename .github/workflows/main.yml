@@ -32,6 +32,7 @@ jobs:
           cat credentials1.json
         shell: bash
 
-      - name: Run the WOWOW schedule script
+      - name: Run the WOWOW and Animax schedule scripts
         run: |
           python wowow_schedule.py
+          python animax.py
