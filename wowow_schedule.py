@@ -3,7 +3,14 @@ import time
 from datetime import datetime, timedelta
 import os
 import gspread
-import logging
+from oauth2client.service_account import ServiceAccountCredentials
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
 
 def find_chrome_binary():
     candidates = ["/usr/bin/google-chrome-stable", "/usr/bin/google-chrome"]
@@ -18,15 +25,6 @@ chrome_binary = find_chrome_binary()
 # Python側の日付処理をJSTに固定（ただしこれだけではブラウザは変更されない）
 os.environ['TZ'] = 'Asia/Tokyo'
 time.tzset()
-
-from oauth2client.service_account import ServiceAccountCredentials
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
 
 # ========== 設定 ==========
 SPREADSHEET_ID = "1lkshTdrk5gVUpSUe9-xTpq438xQQh_SBGcKXfBboH7s"
@@ -44,9 +42,8 @@ CHANNEL_MAP = {
 
 # ========== 番組表取得 ==========
 def fetch_schedule_multiple_days(start_date, days=2):
-    url = f"https://www.wowow.co.jp/schedule/{start_date}"
-    logging.debug(f"初期アクセス: {url}")
-
+    all_programs = []
+    
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -60,11 +57,17 @@ def fetch_schedule_multiple_days(start_date, days=2):
     # 重要：ブラウザ内のタイムゾーンを JST に設定
     driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {"timezoneId": "Asia/Tokyo"})
 
-    all_programs = []
     try:
-        driver.get(url)
         for day in range(days):
-            logging.debug(f"[{day+1}日目] ページ読み込み待機...")
+            current_date = start_date + timedelta(days=day)
+            formatted_date = current_date.strftime('%Y%m%d')
+            display_date = current_date.strftime('%Y/%m/%d')
+            url = f"https://www.wowow.co.jp/schedule/{formatted_date}"
+            logging.debug(f"アクセス: {url}")
+
+            driver.get(url)
+
+            logging.debug(f"[{day+1}日目 ({display_date})] ページ読み込み待機...")
             WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "mdl__program-table"))
             )
@@ -72,8 +75,6 @@ def fetch_schedule_multiple_days(start_date, days=2):
             soup = BeautifulSoup(driver.page_source, "html.parser")
             prime_cells = soup.select('.mdl__program-table td.__prime, .mdl__program-table td.__live, .mdl__program-table td.__cinema')
 
-            # ※ この場合、日付は Python の datetime.now() から取得しています
-            today_date = datetime.now().strftime("%Y/%m/%d")
             for cell in prime_cells:
                 try:
                     time_tag = cell.select_one('.__time')
@@ -81,18 +82,16 @@ def fetch_schedule_multiple_days(start_date, days=2):
                     img_tag = cell.select_one('.__thumb img')
                     desc_tag = cell.select_one('.__lead p')
 
-                    channel_class = next((cls for cls in cell["class"] if cls in CHANNEL_MAP), "不明")
+                    channel_class = next((cls for cls in cell.get("class", []) if cls in CHANNEL_MAP), "不明")
                     channel_name = CHANNEL_MAP.get(channel_class, "不明")
 
-                    # もし時刻がずれている場合は、ここで後処理で補正可能
+                    # 時刻の補正が必要な場合はここで行う（例: 1時間補正）
                     raw_time = time_tag.text.strip() if time_tag else ''
-                    # 例として、もし1時間ずれている場合には補正する（必要に応じて調整）
-                    # ここでは一度ログ出力だけしています
-                    corrected_time = raw_time  # 必要なら後処理を追加
+                    corrected_time = raw_time  # 必要に応じて補正
 
                     program = {
                         'チャンネル': channel_name,
-                        '日付': today_date,
+                        '日付': display_date,
                         '時間': corrected_time,
                         'タイトル': title_tag.text.strip() if title_tag else '',
                         '画像URL': img_tag['src'].strip() if img_tag and img_tag.has_attr('src') else '',
@@ -103,16 +102,8 @@ def fetch_schedule_multiple_days(start_date, days=2):
                 except Exception as e:
                     logging.warning(f"番組データ解析エラー: {e}")
 
-            # 翌日に移動
-            try:
-                next_link = driver.find_element(By.CSS_SELECTOR, 'a.btn__more-view')
-                next_link_url = next_link.get_attribute('href')
-                logging.debug(f"翌日リンクへ移動: {next_link_url}")
-                driver.get(next_link_url)
-                time.sleep(3)
-            except Exception as e:
-                logging.warning(f"翌日リンク取得エラー（最終日？）: {e}")
-                break
+            # 一日ごとの処理の後に一時停止
+            time.sleep(2)
     finally:
         driver.quit()
 
@@ -127,36 +118,38 @@ def write_to_spreadsheet(programs):
     sh = gc.open_by_key(SPREADSHEET_ID)
     for sheet_name in SHEET_NAMES:
         try:
-            sh.del_worksheet(sh.worksheet(sheet_name))
-            time.sleep(2)
+            worksheet = sh.worksheet(sheet_name)
+            sh.del_worksheet(worksheet)
+            logging.debug(f"既存のシート '{sheet_name}' を削除しました。")
+            time.sleep(1)
         except Exception:
+            logging.debug(f"シート '{sheet_name}' が存在しないため削除スキップ。")
             pass
         sheet = sh.add_worksheet(title=sheet_name, rows="1000", cols="10")
-        time.sleep(2)
+        time.sleep(1)
         sheet.append_row(["日付", "時間", "タイトル", "説明", "画像URL"])
+        logging.debug(f"シート '{sheet_name}' にヘッダーを追加しました。")
 
     separated = {"WOWOWプライム": [], "WOWOWライブ": [], "WOWOWシネマ": []}
     for prog in programs:
         if prog['チャンネル'] in separated:
             separated[prog['チャンネル']].append([prog['日付'], prog['時間'], prog['タイトル'], prog['説明'], prog['画像URL']])
+
     for sheet_name, data in separated.items():
         if not data:
+            logging.info(f"シート '{sheet_name}' に書き込むデータがありません。")
             continue
         sheet = sh.worksheet(sheet_name)
-        sheet.batch_update([
-            {
-                'range': f"A2:E{len(data)+1}",
-                'values': data,
-                'majorDimension': 'ROWS'
-            }
-        ])
-        logging.info(f"✅ {sheet_name} に {len(data)} 件書き込み完了")
-        time.sleep(2)
+        # Google Sheetsのバッチサイズの制限に注意（ここでは一括で追加）
+        sheet.update(f"A2:E{len(data)+1}", data)
+        logging.info(f"✅ シート '{sheet_name}' に {len(data)} 件書き込み完了")
+        time.sleep(1)
 
 # ========== メイン ==========
 def main():
-    today = datetime.now().strftime("%Y%m%d")
-    programs = fetch_schedule_multiple_days(today, days=2)
+    start_date = datetime.now()
+    logging.info(f"スケジュール取得開始日: {start_date.strftime('%Y/%m/%d')}")
+    programs = fetch_schedule_multiple_days(start_date, days=2)
     if programs:
         logging.info(f"🎬 取得番組数: {len(programs)}")
         write_to_spreadsheet(programs)
