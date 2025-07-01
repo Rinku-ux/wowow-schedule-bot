@@ -44,7 +44,7 @@ CHANNEL_MAP = {
 }
 
 # ========== 番組表取得 ==========
-def fetch_schedule_multiple_days(start_date, days=2):
+def fetch_schedule_multiple_days(start_date, days=1):
     """指定された開始日から指定された日数分の番組表を取得する"""
     url = f"https://www.wowow.co.jp/schedule/{start_date}"
     logging.debug(f"初期アクセス: {url}")
@@ -77,7 +77,6 @@ def fetch_schedule_multiple_days(start_date, days=2):
             soup = BeautifulSoup(driver.page_source, "html.parser")
             program_cells = soup.select('.mdl__program-table td.__prime, .mdl__program-table td.__live, .mdl__program-table td.__cinema')
 
-            # ★修正点: ループで管理している日付オブジェクトをフォーマットして使用
             display_date = current_date_obj.strftime("%Y/%m/%d")
 
             for cell in program_cells:
@@ -94,7 +93,7 @@ def fetch_schedule_multiple_days(start_date, days=2):
 
                     program = {
                         'チャンネル': channel_name,
-                        '日付': display_date,  # ★修正点: 正しい日付を設定
+                        '日付': display_date,
                         '時間': raw_time,
                         'タイトル': title_tag.text.strip() if title_tag else '',
                         '画像URL': img_tag['src'].strip() if img_tag and img_tag.has_attr('src') else '',
@@ -105,7 +104,7 @@ def fetch_schedule_multiple_days(start_date, days=2):
                 except Exception as e:
                     logging.warning(f"番組データ解析エラー: {e}")
 
-            # ★修正点: 次の日のために日付を1日進める
+            # 次の日のために日付を1日進める
             current_date_obj += timedelta(days=1)
 
             # 最終日以外なら、翌日のリンクに移動
@@ -177,8 +176,8 @@ def write_to_spreadsheet(programs):
 def main():
     """スクリプトのメイン実行関数"""
     today = datetime.now().strftime("%Y%m%d")
-    # 今日と明日の2日分のデータを取得
-    programs = fetch_schedule_multiple_days(today, days=2)
+    # ★★★★★ 修正点: 取得日数を1日に変更 ★★★★★
+    programs = fetch_schedule_multiple_days(today, days=1)
     if programs:
         logging.info(f"🎬 取得番組総数: {len(programs)}")
         write_to_spreadsheet(programs)
